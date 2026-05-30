@@ -205,3 +205,23 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Research data (personal/medical data must not be committed)
+data/raw/*
+!data/raw/.gitkeep
+
+# Experiment logs (large binary files)
+experiments/*
+!experiments/.gitkeep
+
+# Model weights and caches
+outputs/
+*.safetensors
+*.bin
+*.pt
+*.ckpt
+~/.cache/huggingface/
+
+# Processed features (reproducible from source)
+data/processed/*
+!data/processed/.gitkeep
