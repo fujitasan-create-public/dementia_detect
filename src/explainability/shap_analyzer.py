@@ -69,6 +69,20 @@ _FEATURE_LABEL = {
 }
 
 
+# 特徴量の解釈に注意が必要なもの向けの注記。SHAP寄与の上位に出た場合のみ
+# 説明文の末尾に付記する（例: ling_ttr は発話が短いほど機械的に高くなるため、
+# 「語彙の多様性」よりも「発話量の少なさ」の代理指標である可能性が高い。
+# 2026-09-02: word_count との相関 -0.83 で確認済み。特徴自体は予測力に寄与する
+# ため残すが、解釈上の注意として明示する）。
+_CAVEAT_NOTES: dict[str, str] = {
+    "ling_ttr": (
+        "Note: TTR is strongly correlated with utterance length, so a high "
+        "value here likely reflects a shorter response rather than genuine "
+        "vocabulary diversity."
+    ),
+}
+
+
 def generate_explanation(shap_row: np.ndarray, feature_names: list[str], top_n: int = 3) -> str:
     """1件分のSHAP値から自然言語の判定理由文を生成する（英語）。
 
@@ -78,14 +92,20 @@ def generate_explanation(shap_row: np.ndarray, feature_names: list[str], top_n: 
     """
     idx = np.argsort(np.abs(shap_row))[::-1][:top_n]
     reasons = []
+    caveats = []
     for i in idx:
         name = feature_names[i]
         label = _FEATURE_LABEL.get(name, name)
         direction = "high" if shap_row[i] > 0 else "low"
         reasons.append(f"{direction} {label}")
+        if name in _CAVEAT_NOTES:
+            caveats.append(_CAVEAT_NOTES[name])
     conclusion = (
         "suggest a possible indication of cognitive decline"
         if shap_row.sum() > 0
         else "suggest patterns consistent with normal cognitive function"
     )
-    return ", ".join(reasons) + f" {conclusion}."
+    text = ", ".join(reasons) + f" {conclusion}."
+    if caveats:
+        text += " " + " ".join(caveats)
+    return text
