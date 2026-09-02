@@ -1,4 +1,7 @@
-"""spaCy ja_core_news_md を使った形態素解析ラッパー"""
+"""spaCy en_core_web_md を使った英語形態素解析ラッパー。
+
+モデル未導入なら:  python -m spacy download en_core_web_md
+"""
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
@@ -7,13 +10,14 @@ if TYPE_CHECKING:
 
 
 _nlp = None
+_MODEL = "en_core_web_md"
 
 
 def _get_nlp():
     global _nlp
     if _nlp is None:
         import spacy
-        _nlp = spacy.load("ja_core_news_md")
+        _nlp = spacy.load(_MODEL)
     return _nlp
 
 

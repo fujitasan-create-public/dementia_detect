@@ -1,6 +1,6 @@
 """ルールベースの表層言語特徴量（TTR, MTLD, POS分布, フィラー頻度等）。
 
-LLMCARE 論文の 110 特徴から日本語で計算可能なものを実装。
+LLMCARE 論文の 110 特徴から英語で計算可能なものを実装。
 """
 from __future__ import annotations
 import re
@@ -8,9 +8,12 @@ import math
 from dataclasses import dataclass, fields
 
 
-# 日本語フィラーパターン
+# 英語フィラー / ディスフルエンシー・ディスコースマーカー
 _FILLER_PATTERN = re.compile(
-    r"(えーと|えーっと|あのー|あのう|まあ|ま[ぁあ]|うーん|うん|そのー|なんか|ちょっと)"
+    r"\b(uh|uhm|um+|erm?|hmm+|mhm|uh[- ]?huh|ah|"
+    r"well|like|you know|y'know|i mean|sort of|kind of|"
+    r"actually|basically|literally|whatever)\b",
+    re.IGNORECASE,
 )
 
 
@@ -87,15 +90,18 @@ def extract_linguistic_features(
     """表層言語特徴量を抽出する。
 
     Args:
-        text: 正規化済みの生テキスト（フィラー検出用）
+        text: cha_parser 出力の書き起こしテキスト（フィラー検出・文長算出用）。
+            文境界（. ? !）を保持していること。text_normalizer.normalize() は
+            句読点を除去して文分割を壊すため、ここには通さないこと。
         pos_tagged: src.preprocessing.tokenizer.pos_tag() の出力
     """
     tokens = [lemma for lemma, _ in pos_tagged]
     pos_list = [pos for _, pos in pos_tagged]
     n = len(tokens) or 1
 
-    sentences = [s for s in re.split(r"[。！？\n]", text) if s.strip()]
-    avg_len = sum(len(s) for s in sentences) / len(sentences) if sentences else 0.0
+    sentences = [s for s in re.split(r"[.!?\n]+", text) if s.strip()]
+    # 英語は語数で文長を測る
+    avg_len = sum(len(s.split()) for s in sentences) / len(sentences) if sentences else 0.0
 
     return LinguisticFeatures(
         ttr=_ttr(tokens),

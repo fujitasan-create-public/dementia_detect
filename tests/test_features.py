@@ -20,8 +20,15 @@ def test_mtld_short_returns_zero():
 
 
 def test_extract_linguistic_features_runs():
-    text = "えーと、今日はいい天気ですね。えーと、天気がいいですね。"
-    # pos_tagged のモックとして空リストでも動作を確認
-    feat = extract_linguistic_features(text, [("今日", "NOUN"), ("天気", "NOUN"), ("いい", "ADJ")])
+    text = "um the weather is nice today. um the weather is nice."
+    feat = extract_linguistic_features(
+        text, [("weather", "NOUN"), ("nice", "ADJ"), ("today", "NOUN")]
+    )
     assert 0.0 <= feat.filler_ratio <= 1.0
     assert 0.0 <= feat.ttr <= 1.0
+
+
+def test_english_fillers_detected():
+    text = "um well I mean you know it's like whatever."
+    feat = extract_linguistic_features(text, [("mean", "VERB")])
+    assert feat.filler_ratio > 0.0

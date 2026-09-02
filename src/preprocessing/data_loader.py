@@ -1,7 +1,7 @@
 """対話データのロード。DATA_SOURCE 環境変数で使うデータを切り替える。
 
-DATA_SOURCE=raw       -> data/raw/       (DementiaBank 到着後)
-DATA_SOURCE=translated -> data/translated/ (デフォルト: 翻訳データ)
+DATA_SOURCE=raw        -> data/raw/        (DementiaBank 英語データ・デフォルト)
+DATA_SOURCE=translated -> data/translated/ (日本語翻訳データ・将来用)
 DATA_SOURCE=synthetic  -> data/synthetic/
 """
 import os
@@ -30,9 +30,9 @@ def load_dialogues(source: str | None = None) -> list[Dialogue]:
     """CSV ファイルから対話リストを返す。
 
     CSV フォーマット: id,text,label
-    source を省略すると環境変数 DATA_SOURCE を参照し、なければ translated を使う。
+    source を省略すると環境変数 DATA_SOURCE を参照し、なければ raw を使う。
     """
-    source = source or os.getenv("DATA_SOURCE", "translated")
+    source = source or os.getenv("DATA_SOURCE", "raw")
     data_dir = _SOURCE_MAP[source]
     dialogues = []
     for csv_path in sorted(data_dir.glob("*.csv")):

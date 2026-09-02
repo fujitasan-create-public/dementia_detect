@@ -1,14 +1,23 @@
 """ローカルLLMを用いた高次推論特徴の抽出（26特徴、0.0–1.0スコア）。
 
-使用モデル: Qwen2.5-7B-Instruct / Swallow-7B-Instruct 等（config で切り替え）
-量子化: bitsandbytes 4bit NF4
+使用モデル: Qwen2.5-7B-Instruct / Llama-3.1-8B-Instruct 等（Ollama で切り替え）
+実行基盤: Ollama（ローカル HTTP サーバ, 既定 http://localhost:11434）
+対象言語: 英語（DementiaBank 書き起こし）
+
+呼び出し側は `OllamaClient` を生成し、その `.generate` を渡す:
+
+    client = OllamaClient(model="qwen2.5:7b")
+    feat = extract_llm_features(dialogue_text, client.generate)
 """
 from __future__ import annotations
 import json
 import re
+import urllib.error
+import urllib.request
 from dataclasses import dataclass, fields
+from typing import Callable
 
-# 特徴名は de Arriba-Pérez ら (2024) の 26 特徴を日本語対話向けに調整
+# 特徴名は de Arriba-Pérez ら (2024) の 26 特徴（英語対話向け）
 FEATURE_NAMES: list[str] = [
     "memory_impairment",
     "topic_drift",
@@ -73,18 +82,18 @@ class LLMFeatures:
 
 
 _PROMPT_TEMPLATE = """\
-あなたは認知機能と言語の専門家です。
-以下の対話ペア（ボット発話・ユーザ発話）を読み、
-指定された特徴について 0.0〜1.0 のスコアを返してください。
-スコアは JSON フォーマットのみで出力し、説明は不要です。
+You are an expert in cognitive function and language assessment.
+Read the following dialogue (investigator and participant utterances) and
+rate each of the specified features on a scale from 0.0 to 1.0.
+Output ONLY a JSON object with the scores. Do not add any explanation.
 
-[特徴リスト]
+[Feature list]
 {feature_list}
 
-[対話]
+[Dialogue]
 {dialogue}
 
-出力形式: {{"feature_name": score, ...}}
+Output format: {{"feature_name": score, ...}}
 """
 
 
@@ -108,19 +117,69 @@ def _parse_scores(raw: str) -> dict[str, float]:
         return {}
 
 
+class OllamaClient:
+    """Ollama のローカル HTTP サーバに繋いでテキスト生成する薄いクライアント。
+
+    標準ライブラリ（urllib）だけで実装。事前に別ターミナルで `ollama serve`
+    が起動し、対象モデルが pull 済みであること（例: `ollama pull qwen2.5:7b`）。
+    """
+
+    def __init__(
+        self,
+        model: str = "qwen2.5:7b",
+        host: str = "http://localhost:11434",
+        temperature: float = 0.0,
+        num_predict: int = 256,
+        timeout: float = 120.0,
+    ) -> None:
+        self.model = model
+        self.host = host.rstrip("/")
+        self.temperature = temperature
+        self.num_predict = num_predict
+        self.timeout = timeout
+
+    def generate(self, prompt: str) -> str:
+        """プロンプトを投げて生成テキストを返す。失敗時は空文字。
+
+        `format="json"` で JSON 出力を強制し、後段のパース失敗を減らす。
+        """
+        payload = {
+            "model": self.model,
+            "prompt": prompt,
+            "stream": False,
+            "format": "json",
+            "options": {
+                "temperature": self.temperature,
+                "num_predict": self.num_predict,
+            },
+        }
+        req = urllib.request.Request(
+            f"{self.host}/api/generate",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                body = json.loads(resp.read().decode("utf-8"))
+            return body.get("response", "")
+        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
+            return ""
+
+
 def extract_llm_features(
     dialogue_text: str,
-    pipeline,  # transformers.pipeline("text-generation", ...)
+    generate: Callable[[str], str],
 ) -> LLMFeatures:
     """対話テキストからLLM特徴を抽出する。
 
     Args:
         dialogue_text: 前処理済みの対話テキスト
-        pipeline: transformers の text-generation パイプライン（呼び出し元で初期化）
+        generate: プロンプト(str)を受けて生成テキスト(str)を返す関数。
+            通常は `OllamaClient(...).generate` を渡す。
     """
     prompt = _build_prompt(dialogue_text)
-    output = pipeline(prompt, max_new_tokens=256, do_sample=False)
-    generated = output[0]["generated_text"][len(prompt):]
+    generated = generate(prompt)
     scores = _parse_scores(generated)
     feat = LLMFeatures()
     for name, val in scores.items():
