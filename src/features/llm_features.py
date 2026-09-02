@@ -129,13 +129,15 @@ class OllamaClient:
         model: str = "qwen2.5:7b",
         host: str = "http://localhost:11434",
         temperature: float = 0.0,
-        num_predict: int = 256,
+        num_predict: int = 512,
+        num_ctx: int = 8192,
         timeout: float = 120.0,
     ) -> None:
         self.model = model
         self.host = host.rstrip("/")
         self.temperature = temperature
         self.num_predict = num_predict
+        self.num_ctx = num_ctx
         self.timeout = timeout
 
     def generate(self, prompt: str) -> str:
@@ -151,6 +153,7 @@ class OllamaClient:
             "options": {
                 "temperature": self.temperature,
                 "num_predict": self.num_predict,
+                "num_ctx": self.num_ctx,
             },
         }
         req = urllib.request.Request(

@@ -48,7 +48,7 @@ def main():
 
     df = pd.read_csv(args.data)
     y = df["label"].values
-    X = df.drop(columns=["label"]).fillna(0).values
+    X = df.drop(columns=["label", "id"], errors="ignore").fillna(0).values
 
     result = evaluate(X, y, args.model)
     for k, v in result.items():
