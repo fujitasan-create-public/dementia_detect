@@ -220,8 +220,13 @@ outputs/
 *.bin
 *.pt
 *.ckpt
+*.joblib
+models/
 ~/.cache/huggingface/
 
 # Processed features (reproducible from source)
 data/processed/*
 !data/processed/.gitkeep
+
+# Reference papers (personal reading material, not project source)
+*.pdf

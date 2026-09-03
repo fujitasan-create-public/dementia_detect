@@ -6,18 +6,23 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.metrics import f1_score, precision_score, recall_score, roc_auc_score
 from sklearn.preprocessing import label_binarize
+from xgboost import XGBClassifier
+from lightgbm import LGBMClassifier
 
 
 MODELS = {
     "random_forest": RandomForestClassifier(n_estimators=100, random_state=42),
     "decision_tree": DecisionTreeClassifier(random_state=42),
     "naive_bayes": GaussianNB(),
+    "gradient_boosting": GradientBoostingClassifier(random_state=42),
+    "xgboost": XGBClassifier(random_state=42, eval_metric="logloss"),
+    "lightgbm": LGBMClassifier(random_state=42, verbose=-1),
 }
 
 
